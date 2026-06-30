@@ -464,7 +464,8 @@ export async function init(containerId) {
     setRange(startTs, endTs) {
       currentStartTs = startTs;
       currentEndTs   = endTs;
-      chart.resetZoom?.();
+      const zl = chart.options.plugins?.zoom?.limits?.x;
+      if (zl) { zl.min = startTs; zl.max = endTs; }
       chart.options.scales.x.min = startTs;
       chart.options.scales.x.max = endTs;
       recomputeY(startTs, endTs, false);
