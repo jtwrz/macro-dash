@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yield Curve &amp; Inflation</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script>
+    if (window.ChartDataLabels) {
+      Chart.register(window.ChartDataLabels);
+      console.log('datalabels registered successfully');
+    } else {
+      console.error('ChartDataLabels not found on window — script did not load');
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0B1220;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 18px 24px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #f1f5f9;
+    }
+    #last-updated {
+      font-size: 0.7rem;
+      color: #e2e8f0;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Two-panel layout ── */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: rgba(255,255,255,0.05);
+      min-height: calc(100vh - 53px);
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: #0B1220;
+      padding: 20px 22px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #f1f5f9;
+      margin-bottom: 16px;
+    }
+
+    /* ── Skeleton ── */
+    .skeleton {
+      flex: 1;
+      min-height: 420px;
+      background: linear-gradient(90deg, #111827 25%, #1e2d42 50%, #111827 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Stat row (yield curve) ── */
+    .stat-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      flex: 1;
+      min-width: 72px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 5px;
+      padding: 7px 10px 8px;
+    }
+    .stat-label {
+      display: block;
+      font-size: 0.6rem;
+      color: #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+    .stat-value {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #f1f5f9;
+    }
+
+    /* ── Controls row ── */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      transition: opacity 0.3s;
+    }
+    .btn {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      color: #94a3b8;
+      border-radius: 4px;
+      padding: 4px 9px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      line-height: 1.4;
+    }
+    .btn:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn:disabled:hover { background: rgba(255,255,255,0.05); color: #94a3b8; }
+    .btn.active {
+      background: rgba(96,165,250,0.12);
+      border-color: rgba(96,165,250,0.35);
+      color: #93c5fd;
+    }
+    .snap-date {
+      font-size: 0.72rem;
+      color: #64748b;
+      font-variant-numeric: tabular-nums;
+      min-width: 7ch;
+    }
+    .range-slider {
+      flex: 1;
+      min-width: 60px;
+      accent-color: #60A5FA;
+      cursor: pointer;
+    }
+    .btn-group { display: flex; gap: 3px; }
+
+    /* ── Chart area ── */
+    .chart-area {
+      position: relative;
+      height: 320px;
+      flex: none;
+      display: flex;
+      align-items: stretch;
+    }
+    .chart-area canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .loading-msg {
+      color: #475569;
+      font-size: 0.8rem;
+      align-self: center;
+      margin: auto;
+    }
+    .fetch-error {
+      color: #f87171;
+      font-size: 0.8rem;
+      align-self: center;
+      margin: auto;
+      padding: 12px;
+    }
+
+    /* ── Inflation toggle value spans ── */
+    .tv {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .btn.infl-toggle { font-size: 0.7rem; }
+
+    /* ── Panel descriptions ── */
+    .panel-desc {
+      margin-top: 14px;
+      padding-top: 11px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 20px;
+      font-size: 0.63rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .panel-desc strong {
+      color: #f1f5f9;
+      font-weight: 500;
+      margin-right: 3px;
+    }
+
+    /* ── Inflation zoom control ── */
+    .zoom-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: auto;
+    }
+
+    /* ── Time range selector ── */
+    .trs-section {
+      padding: 10px 24px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      max-width: 75%;
+    }
+    .trs-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .trs-label {
+      font-size: 0.775rem;
+      color: #f1f5f9;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .trs-wrap {
+      position: relative;
+      height: 46px;
+      user-select: none;
+      padding: 0 32px;
+    }
+    .trs-track {
+      position: absolute;
+      top: 7px; left: 0; right: 0;
+      height: 10px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 2px;
+    }
+    .trs-sel {
+      position: absolute;
+      top: 7px;
+      height: 10px;
+      background: rgba(96,165,250,0.18);
+      border-left: 2px solid #60A5FA;
+      border-right: 2px solid #60A5FA;
+      cursor: grab;
+      box-sizing: border-box;
+    }
+    .trs-sel:active { cursor: grabbing; }
+    .trs-hl, .trs-hr {
+      position: absolute;
+      top: -4px; bottom: -4px;
+      width: 6px;
+      background: #60A5FA;
+      border-radius: 2px;
+      cursor: ew-resize;
+    }
+    .trs-hl { left: -3px; }
+    .trs-hr { right: -3px; }
+    .trs-axis {
+      position: absolute;
+      top: 20px; left: 0; right: 0;
+    }
+    .trs-axis span {
+      position: absolute;
+      font-size: 0.87rem;
+      color: #f1f5f9;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Yield Curve &amp; Inflation</h1>
+  </header>
+  <div id="trs-section" class="trs-section"></div>
+  <main>
+    <section class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px">
+        <span class="panel-title" style="margin-bottom:0">Yield Curve</span>
+        <span id="last-updated"></span>
+      </div>
+      <div id="yield-curve-panel"><div class="skeleton"></div></div>
+      <div class="panel-desc">
+        <div><strong>Nominal</strong> U.S. Treasury yields (FRED) · Updated daily · No scheduled release</div>
+        <div><strong>TIPS Real</strong> Inflation-adjusted Treasury yield; real return after removing expected CPI</div>
+        <div><strong>10Y–2Y</strong> Most-watched recession signal. Inversion (negative) has historically preceded recessions by 12–18 months. Positive = normal curve.</div>
+        <div><strong>10Y–3M</strong> The Fed's preferred recession indicator. Inversion has preceded every US recession since 1970.</div>
+        <div><strong>30Y–10Y</strong> Slope of the long end of the curve. Steep = market expects higher long-run growth or inflation. Flat/negative = opposite.</div>
+        <div><strong>Breakeven</strong> Market-implied inflation expectation = Nominal minus TIPS. The 10Y breakeven reflects what bond markets are pricing as average annual inflation over the next decade.</div>
+        <div style="grid-column:1/-1;color:#64748b">Source: Federal Reserve Bank of St. Louis (FRED) · U.S. Treasury</div>
+      </div>
+    </section>
+    <section class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <span class="panel-title" style="margin-bottom:0">Inflation</span>
+        <div id="infl-dates" style="font-size:0.7rem;color:#e2e8f0;letter-spacing:0.02em;line-height:1.65;text-align:right"></div>
+      </div>
+      <div id="inflation-panel"><div class="skeleton"></div></div>
+      <div class="panel-desc">
+        <div><strong>CPI</strong> BLS · Broad consumer prices incl. food &amp; energy · Released ~2nd Tue of following month</div>
+        <div><strong>Core CPI</strong> BLS · CPI ex-food &amp; energy · Same release as CPI</div>
+        <div><strong>PCE</strong> BEA · Fed-preferred price gauge; broader basket than CPI · Released ~4 wks after month end</div>
+        <div><strong>Core PCE</strong> BEA · Fed's primary inflation target · Same release as PCE</div>
+        <div><strong>PPI</strong> BLS · Final Demand; leads CPI by 1–3 months · Released ~2nd Wed of following month</div>
+        <div><strong>Avg Hrly Earnings</strong> BLS · Part of monthly Jobs Report · Released 1st Fri of following month</div>
+        <div style="grid-column:1/-1">
+          <strong>Fed Target 2%</strong>
+          <svg width="28" height="8" viewBox="0 0 28 8" style="vertical-align:middle;margin:0 4px">
+            <line x1="0" y1="4" x2="28" y2="4" stroke="rgba(100,180,255,0.5)" stroke-width="1.5" stroke-dasharray="6,4"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { init as initYieldCurve } from './src/yieldCurve.js';
+    import { init as initInflation }  from './src/inflationPanel.js';
+    import { TimeRangeSelector }      from './src/timeRange.js';
+
+    const [yc, infl] = await Promise.all([
+      initYieldCurve('yield-curve-panel'),
+      initInflation('inflation-panel'),
+    ]);
+
+    if (yc?.fetchedAt) {
+      document.getElementById('last-updated').textContent =
+        'Data as of ' + new Date(yc.fetchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    // Align the two chart canvas tops to the same pixel height
+    requestAnimationFrame(() => {
+      const ycChart   = document.querySelector('#yield-curve-panel .chart-area');
+      const inflChart = document.querySelector('#inflation-panel .chart-area');
+      if (!ycChart || !inflChart) return;
+      const diff = ycChart.getBoundingClientRect().top - inflChart.getBoundingClientRect().top;
+      if (Math.abs(diff) > 2) {
+        if (diff > 0) {
+          const inflControls = document.querySelector('#inflation-panel .controls-row');
+          if (inflControls) inflControls.style.marginTop = diff + 'px';
+        } else {
+          ycChart.style.marginTop = (-diff) + 'px';
+        }
+      }
+    });
+
+    new TimeRangeSelector({
+      containerId: 'trs-section',
+      minTs: new Date('2000-01-01').getTime(),
+      maxTs: Date.now(),
+      defaultYears: 5,
+      onChange: (startTs, endTs) => {
+        yc?.setRange(startTs, endTs);
+        infl?.setRange(startTs, endTs);
+      },
+    });
+  </script>
+</body>
+</html>

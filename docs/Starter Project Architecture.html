@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<!-- saved from url=(0059)file:///Users/johntower/Downloads/starter-architecture.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Starter Project Architecture</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#0B1220;
+    color:#EDE8DD;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    padding:32px 24px 60px;
+    min-height:100vh;
+  }
+  h1{
+    font-family:Georgia,serif;
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    color:#EDE8DD;
+    margin-bottom:4px;
+  }
+  .subtitle{font-size:13px;color:#6B7A94;margin-bottom:36px}
+
+  .diagram{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:0;
+    max-width:760px;
+    margin:0 auto;
+  }
+
+  /* Layer wrapper */
+  .layer{width:100%}
+  .layer-label{
+    font-size:10px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    font-weight:700;
+    color:#C9A227;
+    margin-bottom:8px;
+    padding-left:2px;
+  }
+  .row{display:flex;gap:12px;width:100%}
+
+  /* Box */
+  .box{
+    flex:1;
+    border-radius:8px;
+    padding:14px 16px;
+    border:1px solid;
+    position:relative;
+  }
+  .box .name{font-size:14px;font-weight:700;margin-bottom:4px}
+  .box .desc{font-size:12px;line-height:1.55;opacity:0.75}
+  .badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .badge{
+    font-size:10px;padding:2px 8px;border-radius:999px;
+    font-weight:500;letter-spacing:0.02em;
+    background:rgba(255,255,255,0.06);
+    color:#9BA8BA;
+    border:1px solid rgba(255,255,255,0.1);
+  }
+
+  /* Color themes */
+  .c-blue {background:#0D1F3C;border-color:#1D4ED8;color:#93C5FD}
+  .c-blue .name{color:#BFDBFE}
+  .c-teal {background:#062322;border-color:#0D9488;color:#5EEAD4}
+  .c-teal .name{color:#99F6E4}
+  .c-purple{background:#160D2E;border-color:#7C3AED;color:#C4B5FD}
+  .c-purple .name{color:#DDD6FE}
+  .c-amber {background:#1F1200;border-color:#D97706;color:#FCD34D}
+  .c-amber .name{color:#FDE68A}
+  .c-green {background:#041F10;border-color:#16A34A;color:#86EFAC}
+  .c-green .name{color:#BBF7D0}
+  .c-gray  {background:#141418;border-color:#3F3F46;color:#A1A1AA}
+  .c-gray .name{color:#D4D4D8}
+
+  /* Arrows */
+  .arrow{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:32px;
+    width:100%;
+    color:#334155;
+    font-size:22px;
+    position:relative;
+  }
+  /* multi-column arrow */
+  .arrow-split{
+    display:flex;
+    width:100%;
+    height:32px;
+  }
+  .arrow-split .ac{
+    flex:1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    color:#334155;
+    font-size:18px;
+  }
+
+  /* connector line for side-by-side boxes */
+  .connector{
+    width:100%;
+    height:28px;
+    display:flex;
+    align-items:center;
+    position:relative;
+  }
+  .connector::before{
+    content:'';
+    position:absolute;
+    top:50%;left:25%;right:25%;
+    height:1px;
+    background:#1E293B;
+  }
+  .connector .node{
+    flex:1;
+    display:flex;
+    justify-content:center;
+  }
+  .connector .node::after{
+    content:'↓';
+    color:#334155;
+    font-size:18px;
+    line-height:28px;
+  }
+
+  /* annotation */
+  .note{
+    font-size:11px;
+    color:#4B5563;
+    text-align:center;
+    font-style:italic;
+    margin:4px 0 0;
+  }
+
+  @media(max-width:560px){
+    .row{flex-direction:column}
+  }
+</style>
+</head>
+<body>
+
+<h1>Starter Project — Architecture</h1>
+<div class="subtitle">Yield Curve &amp; Inflation Dashboard · how the pieces connect</div>
+
+<div class="diagram">
+
+  <!-- 1. DATA SOURCE -->
+  <div class="layer">
+    <div class="layer-label">① Data source</div>
+    <div class="row">
+      <div class="box c-blue">
+        <div class="name">FRED API — Federal Reserve Economic Data</div>
+        <div class="desc">Free API, instant signup. Returns JSON time series for any of 800k+ economic series. You call it with a series ID and a date range; it returns an array of date/value pairs.</div>
+        <div class="badges">
+          <span class="badge">DGS3MO → DGS30 (Treasury yields)</span>
+          <span class="badge">DFII5 → DFII30 (TIPS real yields)</span>
+          <span class="badge">T5YIE · T10YIE (breakeven)</span>
+          <span class="badge">CPIAUCSL · PCEPI · PPIACO · CPILFESL (inflation)</span>
+          <span class="badge">CES0500000003 (wage growth)</span>
+          <span class="badge">free · rate-limited to 120 req/min</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- 2. FETCH LAYER -->
+  <div class="layer">
+    <div class="layer-label">② Fetch layer — src/fred.js</div>
+    <div class="row">
+      <div class="box c-teal">
+        <div class="name">fetchSeries(id, startDate, units)</div>
+        <div class="desc">Calls one FRED series. Strips null observations. Returns a clean <code>[{date, value}]</code> array. Handles the <code>units=pc1</code> flag for YoY % change on inflation series.</div>
+        <div class="badges"><span class="badge">vanilla JS</span><span class="badge">ES module</span><span class="badge">async/await</span></div>
+      </div>
+      <div class="box c-teal">
+        <div class="name">fetchMultiple(ids, startDate, units)</div>
+        <div class="desc">Loops over an array of series IDs, calls fetchSeries for each with a small delay between calls, returns a keyed object — one call to load all yield curve series at once.</div>
+        <div class="badges"><span class="badge">vanilla JS</span><span class="badge">ES module</span><span class="badge">rate-friendly delay</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="node"></div>
+    <div class="node"></div>
+  </div>
+
+  <!-- 3. CHART MODULES -->
+  <div class="layer">
+    <div class="layer-label">③ Chart modules — src/</div>
+    <div class="row">
+      <div class="box c-purple">
+        <div class="name">yieldCurve.js</div>
+        <div class="desc">Fetches Treasury, TIPS, and breakeven series. Groups into monthly snapshots (first business day). Renders a Chart.js line chart plotting yield vs maturity. Drives the animation: play/pause, scrubable slider, 0.5×/1×/2×/4× speed, series toggles. Stat cards (10Y yield, spreads, breakeven) update as you scrub.</div>
+        <div class="badges"><span class="badge">Chart.js</span><span class="badge">animation loop</span><span class="badge">monthly snapshots</span></div>
+      </div>
+      <div class="box c-purple">
+        <div class="name">inflationPanel.js</div>
+        <div class="desc">Fetches 6 inflation series with <code>units=pc1</code>. Renders a multi-line time series chart. Each series gets a distinct color + dash pattern. Horizontal dashed line at 2% (Fed target). Custom HTML legend above chart shows series names and current values pinned to right edge.</div>
+        <div class="badges"><span class="badge">Chart.js</span><span class="badge">multi-line</span><span class="badge">YoY % transform</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- 4. HTML -->
+  <div class="layer">
+    <div class="layer-label">④ Page shell — index.html</div>
+    <div class="row">
+      <div class="box c-amber">
+        <div class="name">index.html — the entire app in one file</div>
+        <div class="desc">Loads Chart.js from CDN (no install needed). Two-panel layout: yield curve left, inflation right. Stacks to single column on mobile below 900px. Shows a loading skeleton while FRED data fetches. Imports both chart modules and initialises them on DOMContentLoaded. Header shows title + last-updated timestamp.</div>
+        <div class="badges">
+          <span class="badge">Chart.js via cdnjs CDN</span>
+          <span class="badge">no framework</span>
+          <span class="badge">no bundler</span>
+          <span class="badge">no build step</span>
+          <span class="badge">dark #0B1220 background</span>
+          <span class="badge">responsive</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- 5. DEPLOY -->
+  <div class="layer">
+    <div class="layer-label">⑤ Deploy — .github/workflows/deploy.yml</div>
+    <div class="row">
+      <div class="box c-green">
+        <div class="name">GitHub Actions</div>
+        <div class="desc">Workflow triggers automatically on every push to <code>main</code>. No build step — it just deploys the repo root directly. Runs on GitHub's servers, not your machine. Free within GitHub's generous free tier.</div>
+        <div class="badges"><span class="badge">actions/deploy-pages</span><span class="badge">triggers on push to main</span><span class="badge">free tier</span></div>
+      </div>
+      <div class="box c-green">
+        <div class="name">GitHub Pages</div>
+        <div class="desc">Hosts the static site at <code>yourusername.github.io/yield-inflation-dashboard</code>. Always on. No server to maintain. Free for public repos. Reachable from any device on any network.</div>
+        <div class="badges"><span class="badge">static hosting</span><span class="badge">free</span><span class="badge">custom URL later</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow">↓</div>
+
+  <!-- 6. YOU -->
+  <div class="layer">
+    <div class="layer-label">⑥ You</div>
+    <div class="row">
+      <div class="box c-gray">
+        <div class="name">Browser — any device, anywhere</div>
+        <div class="desc">Open the URL on your phone, laptop, or work computer. On page load the browser fetches fresh data from FRED, renders both charts, and you're looking at live economic data. No login, no app to install, no server to babysit.</div>
+        <div class="badges">
+          <span class="badge">phone · laptop · work computer</span>
+          <span class="badge">data loads fresh on every visit</span>
+          <span class="badge">~2s load time</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:36px;padding:16px;border:1px solid #1E293B;border-radius:8px;background:#0D1525;max-width:760px;width:100%">
+    <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#C9A227;font-weight:700;margin-bottom:10px">What you need to start</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+      <div style="font-size:12px;color:#6B7A94;line-height:1.6">
+        <span style="color:#EDE8DD;font-weight:600">FRED API key</span><br>
+        Free, instant at fred.stlouisfed.org — no approval wait
+      </div>
+      <div style="font-size:12px;color:#6B7A94;line-height:1.6">
+        <span style="color:#EDE8DD;font-weight:600">VS Code + Claude Code</span><br>
+        Install the Claude Code extension, open an empty folder
+      </div>
+      <div style="font-size:12px;color:#6B7A94;line-height:1.6">
+        <span style="color:#EDE8DD;font-weight:600">GitHub account</span><br>
+        Free, needed for Pages hosting and Actions deploy
+      </div>
+      <div style="font-size:12px;color:#6B7A94;line-height:1.6">
+        <span style="color:#EDE8DD;font-weight:600">The starter project brief</span><br>
+        Paste the build prompt into Claude Code and go
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+</body></html>
